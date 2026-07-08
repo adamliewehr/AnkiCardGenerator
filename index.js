@@ -11,6 +11,11 @@
 const axios = require("axios");
 const word = process.argv[2]; // reading input from the terminal
 
+if (!word) {
+  console.log("Please enter a word. Example command: vocab hello");
+  process.exit(1);
+}
+
 // We wrap everything in an 'async' function so we can use the 'await' keyword inside
 async function getDefinition() {
   try {
@@ -24,14 +29,24 @@ async function getDefinition() {
     // Axios automatically parses the JSON. We grab the first entry (index 0)
     const data = response.data[0];
 
-    // console.log(data);
-
     // Drill down into the JSON structure to find what we need
     const partOfSpeech = data.meanings[0].partOfSpeech;
     const definition = data.meanings[0].definitions[0].definition;
+    const synonyms = data.meanings[0].synonyms;
+
+    let stringOfSynonyms = "";
+
+    for (const syn of synonyms) {
+      stringOfSynonyms += syn + ", ";
+    }
+
+    stringOfSynonyms = stringOfSynonyms.slice(0, stringOfSynonyms.length - 2);
+
+    const audioURL = data.phonetics[0].audio;
 
     // Print it to the terminal
     console.log(`\n [${partOfSpeech}] ${definition}\n`);
+    toAnki(word, partOfSpeech, definition, stringOfSynonyms, audioURL);
   } catch (error) {
     // If the word isn't found, the API returns a 404, which Axios catches here
     if (error.response && error.response.status === 404) {
@@ -40,6 +55,48 @@ async function getDefinition() {
       console.error(`Error: ${error.message}`);
     }
   }
+}
+
+async function toAnki(
+  word,
+  partOfSpeech,
+  definition,
+  stringOfSynonyms,
+  audioURL,
+) {
+  const ankiPayload = {
+    action: "addNote",
+    version: 6,
+    params: {
+      note: {
+        deckName: "Vocabulary",
+        modelName: "Basic",
+        fields: {
+          Front: word,
+          // pass HTML directly into Anki fields
+          Back: `Part of Speech: ${partOfSpeech} <br> Definition: ${definition} <br> Synonyms: ${stringOfSynonyms}`,
+        },
+        options: {
+          allowDuplicate: false,
+        },
+        tags: ["cli-generated"],
+        audio: [
+          {
+            url: audioURL,
+            filename: `${word}.mp3`,
+            fields: ["Front"],
+          },
+        ],
+      },
+    },
+  };
+
+  const ankiResponse = await axios.post("http://127.0.0.1:8765", ankiPayload);
+  // console.log(ankiResponse);
+
+  // if ankiResponse
+
+  return true;
 }
 
 getDefinition();
