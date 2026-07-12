@@ -46,7 +46,7 @@ async function getDefinition() {
 
     // Print it to the terminal
     console.log(`\n [${partOfSpeech}] ${definition}\n`);
-    toAnki(word, partOfSpeech, definition, stringOfSynonyms, audioURL);
+    // toAnki(word, partOfSpeech, definition, stringOfSynonyms, audioURL);
   } catch (error) {
     // If the word isn't found, the API returns a 404, which Axios catches here
     if (error.response && error.response.status === 404) {
