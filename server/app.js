@@ -8,8 +8,6 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-// routes go here
-
 app.post("/api/define", async (req, res) => {
   const word = req.body.word;
   // get the word that the user wants to define
@@ -24,27 +22,40 @@ app.post("/api/define", async (req, res) => {
     // Axios automatically parses the JSON. We grab the first entry (index 0)
     const data = response.data[0];
 
-    // Drill down into the JSON structure to find what we need
-    const partOfSpeech = data.meanings[0].partOfSpeech;
-    const definition = data.meanings[0].definitions[0].definition;
-    const synonyms = data.meanings[0].synonyms;
+    // so the way this JSON is structured, we care about two main keys:
 
-    let stringOfSynonyms = "";
+    const phonetics = data.phonetics;
+    const meanings = data.meanings;
 
-    for (const syn of synonyms) {
-      stringOfSynonyms += syn + ", ";
-    }
+    // console.log(phonetics);
+    // console.log(meanings);
 
-    stringOfSynonyms = stringOfSynonyms.slice(0, stringOfSynonyms.length - 2);
+    res.send({ phonetics: phonetics, meanings, meanings });
 
-    // send back the word, partofspeech, and def as a json object
+    // // Drill down into the JSON structure to find what we need
+    // const partOfSpeech = data.meanings[0].partOfSpeech;
+    // const definition = data.meanings[0].definitions[0].definition;
+    // const synonyms = data.meanings[0].synonyms;
 
-    res.send({
-      word: word,
-      definition: definition,
-      partOfSpeech: partOfSpeech,
-      synonyms: stringOfSynonyms,
-    });
+    // let stringOfSynonyms = "";
+
+    // for (const syn of synonyms) {
+    //   stringOfSynonyms += syn + ", ";
+    // }
+
+    // stringOfSynonyms = stringOfSynonyms.slice(0, stringOfSynonyms.length - 2);
+
+    // const audioURL = data.phonetics[0].audio;
+
+    // // send back the word, partofspeech, and def as a json object
+
+    // res.send({
+    //   word: word,
+    //   definition: definition,
+    //   partOfSpeech: partOfSpeech,
+    //   synonyms: stringOfSynonyms,
+    //   audio: audioURL,
+    // });
   } catch (error) {
     if (error.response && error.response.status === 404) {
       console.error(`Error: "${word}" not found in the dictionary.`);
@@ -53,5 +64,7 @@ app.post("/api/define", async (req, res) => {
     }
   }
 });
+
+app.post("/api/sendToAnki", async (req, res) => {});
 
 app.listen(PORT, () => console.log(`running on port http://localhost:${PORT}`));
