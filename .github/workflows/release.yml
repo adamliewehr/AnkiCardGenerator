@@ -1,0 +1,42 @@
+name: Build and Release Electron App
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers on any tag that starts with 'v', e.g., v1.0.0, v1.0.1
+
+jobs:
+  release:
+    name: Build & Release on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    # We build on both Mac and Windows simultaneously!
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    # Gives the Action permission to create a GitHub Release and upload files
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          npm install
+          npm run postinstall
+
+      - name: Build and Publish to GitHub Releases
+        env:
+          # This token is automatically provided by GitHub Actions!
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run build:client
+          npx electron-builder --publish always
