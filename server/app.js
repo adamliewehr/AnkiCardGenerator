@@ -1,7 +1,9 @@
+require("dotenv").config({ path: "../.env" });
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 const nlp = require("compromise");
+const { GoogleGenAI } = require("@google/genai");
 
 const app = express();
 const PORT = 3000;
@@ -98,8 +100,88 @@ app.post("/api/define", async (req, res) => {
     // });
   } catch (error) {
     if (error.response && error.response.status === 404) {
-      console.error(`Error: "${word}" not found in the dictionary.`);
-      res.status(404).send({ error: "Word not found" });
+      console.log(`[API] "${word}" not found in Dictionary API. Falling back to Gemini...`);
+      
+      if (!process.env.GEMINI_API_KEY) {
+        console.error("No GEMINI_API_KEY found in .env");
+        return res.status(404).send({ error: "Word not found and no Gemini API key configured for fallback." });
+      }
+
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        
+        const baseInstructions = `If the word is complete gibberish (e.g., random keyboard mashing) and has absolutely no meaning in any language, slang, or technical domain, return an empty array: []
+        Otherwise, return the response in this exact JSON schema:
+        [
+          {
+            "partOfSpeech": "noun",
+            "definitions": [
+              {
+                "definition": "The definition...",
+                "example": "An example sentence...",
+                "synonyms": ["synonym1", "synonym2"]
+              }
+            ]
+          }
+        ]`;
+
+        let prompt = `Define the word "${word}". ${baseInstructions} Provide multiple part of speech entries if applicable.`;
+
+        if (sentence) {
+          prompt = `Define the word "${word}" strictly in the context of this sentence: "${sentence}". ${baseInstructions}`;
+        }
+
+        const genaiResponse = await ai.models.generateContent({
+            model: 'gemini-3.6-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json"
+            }
+        });
+
+        let fallbackMeanings = JSON.parse(genaiResponse.text);
+        
+        if (!fallbackMeanings || fallbackMeanings.length === 0) {
+          return res.status(404).send({ error: "Word not found" });
+        }
+        
+        // Ensure the NLP matching still applies if it was contextual
+        if (sentence) {
+          const match = nlp(sentence).match(`{${word}}`);
+          let identifiedPOS = null;
+          if (match.has('#Noun')) identifiedPOS = 'noun';
+          else if (match.has('#Verb')) identifiedPOS = 'verb';
+          else if (match.has('#Adjective')) identifiedPOS = 'adjective';
+          else if (match.has('#Adverb')) identifiedPOS = 'adverb';
+
+          if (identifiedPOS) {
+            const matchedMeanings = fallbackMeanings.filter(m => m.partOfSpeech === identifiedPOS);
+            const otherMeanings = fallbackMeanings.filter(m => m.partOfSpeech !== identifiedPOS);
+            fallbackMeanings = [...matchedMeanings, ...otherMeanings];
+          }
+        }
+        
+        // Add partOfSpeechDisplay with a ✨ to indicate it was AI generated
+        const posCounts = {};
+        for (const m of fallbackMeanings) {
+          posCounts[m.partOfSpeech] = (posCounts[m.partOfSpeech] || 0) + 1;
+        }
+        
+        const posCurrent = {};
+        for (const m of fallbackMeanings) {
+          if (posCounts[m.partOfSpeech] > 1) {
+            posCurrent[m.partOfSpeech] = (posCurrent[m.partOfSpeech] || 0) + 1;
+            m.partOfSpeechDisplay = `${m.partOfSpeech} (${posCurrent[m.partOfSpeech]}) ✨`;
+          } else {
+            m.partOfSpeechDisplay = `${m.partOfSpeech} ✨`;
+          }
+        }
+
+        res.send({ phonetics: [], meanings: fallbackMeanings, isAIGenerated: true });
+      } catch (geminiError) {
+        console.error("Gemini Fallback Error:", geminiError);
+        res.status(500).send({ error: "Dictionary API failed and LLM fallback failed." });
+      }
     } else {
       console.error(`Error: ${error.message}`);
       res.status(500).send({ error: "Internal server error" });

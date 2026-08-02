@@ -20,19 +20,6 @@ The long-term vision is a **subject-aware flashcard generator** — not just voc
 
 ---
 
-## Current State
-
-- ✅ Git repo initialized, monorepo structure (`/client`, `/server`)
-- ✅ Express server running with `nodemon` on port 3000
-- ✅ `POST /api/define` route stubbed out (axios logic still needs filling in)
-- ✅ `App.jsx` has state variables and `handleSubmit` wired up
-- ✅ Search form renders, calls backend, populates editable state
-- ⬜ Backend route not yet returning real data from the dictionary API
-- ⬜ Editable review form not yet complete
-- ⬜ Anki push not yet implemented
-
----
-
 ## Architectural Decisions Made
 
 ### Forms
@@ -85,23 +72,38 @@ No cloud deployment needed. AnkiConnect requires Anki to be open locally anyway.
 ### Phase 2 — Robustness (Completed)
 - [x] Error handling: word not found, Anki not running, duplicate card, bad audio URLs
 
-### Phase 3 — Smart Definitions (In Progress)
+### Phase 3 — Smart Definitions (Completed)
 - [x] Add optional sentence input field to the UI
 - [x] Use `compromise` to extract POS from the sentence
 - [x] Sort dictionary results to match that POS (so correct context is auto-selected)
-- [ ] Add LLM fallback for context-dependent definition when sentence is provided
 
-### Phase 4 — LLM Integration
-- [ ] Default free LLM (Groq or Gemini) for subject-aware definitions
-- [ ] UI settings panel: user can input their own API key
-- [ ] Ollama support for local/private LLM option
-- [ ] Subject mode: user picks a domain (biology, law, etc.) → LLM generates a context-aware definition
+### Phase 4 — LLM Integration (In Progress)
 
-### Phase 5 — Package as Desktop App
-- [ ] Wrap entire monorepo in **Electron**
-- [ ] Single installable app — no terminal, no `npm run dev`
-- [ ] Electron's Node.js backend can still hit AnkiConnect and Ollama on localhost
-- [ ] Distribute via GitHub Releases
+**1. AI Selection Assistance (Contextual Disambiguation)**
+- [x] **LLM Fallback (Zero Results)**: If the dictionary API fails to return anything, have the LLM dynamically generate a dictionary-style response (definition, examples, synonyms).
+- [ ] **AI Selection Assistance (Results Exist)**: Add a ✨ "Auto-Select Best Definition" button to the UI.
+  - *Implementation:* Create `POST /api/select-best-definition` that takes the word, context sentence, and API results. The LLM returns the index of the best matching meaning/definition, automatically updating the frontend form.
+
+**2. UI Settings Panel & API Key Management**
+- [ ] **Settings UI**: Add a collapsible section in the frontend for LLM configuration.
+- [ ] **Client-side Storage**: Store the chosen provider (Gemini, Groq, Ollama) and API keys in `localStorage` (this prepares for `electron-store` in Phase 5).
+- [ ] **Header Passing**: Pass user-configured API keys and provider preferences from the frontend to the backend via HTTP headers.
+
+**3. Multi-Provider & Local LLM Support**
+- [ ] **Unified LLM Helper**: Refactor the backend to use a single `generateLLMResponse` helper to support Gemini, Groq, and Ollama.
+- [ ] **Ollama Support**: Implement standard axios POST to local Ollama instance (default `http://localhost:11434`).
+
+**4. Subject Mode (Domain-Aware Definitions)**
+- [ ] **UI Input**: Add a "Domain/Subject" optional input field or dropdown to the search form.
+- [ ] **Direct-to-LLM Routing**: Update `POST /api/define`. If a domain is provided, **completely skip the Free Dictionary API** and route the query directly to the active LLM provider.
+- [ ] **Domain Prompt**: Update the LLM prompt to strictly restrict the definition to the specified subject.
+
+### Phase 5 — Package as Desktop App (Electron Migration)
+- [ ] **Electron Wrapper**: Wrap the entire monorepo in Electron. The existing Express backend (`server/app.js`) should be integrated into the Electron Main process, while the React frontend (Vite production build) runs in the Renderer process.
+- [ ] **API Key Abstraction (`electron-store`)**: Eliminate the developer-centric `.env` file approach. Implement `electron-store` in the Main process to securely persist the user's Gemini API key locally across sessions.
+- [ ] **Settings UI**: Build a Settings modal in the React frontend where the user can input their Gemini API key. Use Electron IPC (Inter-Process Communication) to send this key to the Main process to be saved.
+- [ ] **Single Installable App**: Configure `electron-builder` to package the application into a standalone `.exe` or `.dmg`. End-users should never have to open a terminal.
+- [ ] **Distribution**: Distribute the packaged binaries via GitHub Releases.
 
 ---
 
