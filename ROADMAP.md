@@ -15,7 +15,7 @@ The long-term vision is a **subject-aware flashcard generator** — not just voc
 | **Backend** | Node.js + Express (port 3000) |
 | **HTTP client** | Axios (both sides) |
 | **Dictionary** | Free Dictionary API (primary) |
-| **Fallback** | Merriam-Webster API (`shortdef` field) |
+| **Fallback** | LLM |
 | **Anki** | AnkiConnect at `http://127.0.0.1:8765` |
 
 ---
@@ -45,8 +45,7 @@ Each editable field (`definition`, `partOfSpeech`, `synonyms`) has its own `useS
 ### API Strategy (layered fallback)
 ```
 1. Free Dictionary API       → primary, simple JSON, easy to parse
-2. Merriam-Webster API       → fallback, use `shortdef` field only (rest is deeply nested)
-3. LLM                       → last resort OR when user provides a sentence for context
+2. LLM                       → fallback OR when user provides a sentence for context
 ```
 This keeps the app functional for users who don't want LLM involvement while still supporting context-aware defining when needed.
 
@@ -78,19 +77,18 @@ No cloud deployment needed. AnkiConnect requires Anki to be open locally anyway.
 
 ## Full Roadmap
 
-### Phase 1 — Core Flow (Current)
-- [ ] Fill in `POST /api/define` backend route with real axios call to Free Dictionary API
-- [ ] Complete editable review form in `App.jsx`
-- [ ] Implement "Save to Anki" button → POST to AnkiConnect
+### Phase 1 — Core Flow (Completed)
+- [x] Fill in `POST /api/define` backend route with real axios call to Free Dictionary API
+- [x] Complete editable review form in `App.jsx`
+- [x] Implement "Save to Anki" button → POST to AnkiConnect
 
-### Phase 2 — Robustness
-- [ ] Add Merriam-Webster as fallback (use `shortdef` only)
-- [ ] Error handling: word not found, Anki not running, duplicate card
+### Phase 2 — Robustness (Completed)
+- [x] Error handling: word not found, Anki not running, duplicate card, bad audio URLs
 
-### Phase 3 — Smart Definitions
-- [ ] Add optional sentence input field to the UI
-- [ ] Use `compromise` to extract POS from the sentence
-- [ ] Filter dictionary results to match that POS
+### Phase 3 — Smart Definitions (In Progress)
+- [x] Add optional sentence input field to the UI
+- [x] Use `compromise` to extract POS from the sentence
+- [x] Sort dictionary results to match that POS (so correct context is auto-selected)
 - [ ] Add LLM fallback for context-dependent definition when sentence is provided
 
 ### Phase 4 — LLM Integration
