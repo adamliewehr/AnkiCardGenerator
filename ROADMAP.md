@@ -81,28 +81,28 @@ No cloud deployment needed. AnkiConnect requires Anki to be open locally anyway.
 
 **1. AI Selection Assistance (Contextual Disambiguation)**
 - [x] **LLM Fallback (Zero Results)**: If the dictionary API fails to return anything, have the LLM dynamically generate a dictionary-style response (definition, examples, synonyms).
-- [ ] **AI Selection Assistance (Results Exist)**: Add a ✨ "Auto-Select Best Definition" button to the UI.
+- [x] **AI Selection Assistance (Results Exist)**: Add a ✨ "Auto-Select Best Definition" button to the UI.
   - *Implementation:* Create `POST /api/select-best-definition` that takes the word, context sentence, and API results. The LLM returns the index of the best matching meaning/definition, automatically updating the frontend form.
 
 **2. UI Settings Panel & API Key Management**
-- [ ] **Settings UI**: Add a collapsible section in the frontend for LLM configuration.
-- [ ] **Client-side Storage**: Store the chosen provider (Gemini, Groq, Ollama) and API keys in `localStorage` (this prepares for `electron-store` in Phase 5).
-- [ ] **Header Passing**: Pass user-configured API keys and provider preferences from the frontend to the backend via HTTP headers.
+- [x] **Settings UI**: Add a collapsible section in the frontend for LLM configuration.
+- [x] **Client-side Storage**: Store the chosen provider (Gemini, Groq, Ollama) and API keys in `localStorage` (this prepares for `electron-store` in Phase 5).
+- [x] **Header Passing**: Pass user-configured API keys and provider preferences from the frontend to the backend via HTTP headers.
 
 **3. Multi-Provider & Local LLM Support**
-- [ ] **Unified LLM Helper**: Refactor the backend to use a single `generateLLMResponse` helper to support Gemini, Groq, and Ollama.
-- [ ] **Ollama Support**: Implement standard axios POST to local Ollama instance (default `http://localhost:11434`).
+- [x] **Unified LLM Helper**: Refactor the backend to use a single `generateLLMResponse` helper to support Gemini, Groq, and Ollama.
+- [x] **Ollama Support**: Implement standard axios POST to local Ollama instance (default `http://localhost:11434`).
 
 **4. Subject Mode (Domain-Aware Definitions)**
-- [ ] **UI Input**: Add a "Domain/Subject" optional input field or dropdown to the search form.
-- [ ] **Direct-to-LLM Routing**: Update `POST /api/define`. If a domain is provided, **completely skip the Free Dictionary API** and route the query directly to the active LLM provider.
-- [ ] **Domain Prompt**: Update the LLM prompt to strictly restrict the definition to the specified subject.
+- [x] **UI Input**: Add a "Domain/Subject" optional input field or dropdown to the search form.
+- [x] **Direct-to-LLM Routing**: Update `POST /api/define`. If a domain is provided, **completely skip the Free Dictionary API** and route the query directly to the active LLM provider.
+- [x] **Domain Prompt**: Update the LLM prompt to strictly restrict the definition to the specified subject.
 
 ### Phase 5 — Package as Desktop App (Electron Migration)
-- [ ] **Electron Wrapper**: Wrap the entire monorepo in Electron. The existing Express backend (`server/app.js`) should be integrated into the Electron Main process, while the React frontend (Vite production build) runs in the Renderer process.
-- [ ] **API Key Abstraction (`electron-store`)**: Eliminate the developer-centric `.env` file approach. Implement `electron-store` in the Main process to securely persist the user's Gemini API key locally across sessions.
-- [ ] **Settings UI**: Build a Settings modal in the React frontend where the user can input their Gemini API key. Use Electron IPC (Inter-Process Communication) to send this key to the Main process to be saved.
-- [ ] **Single Installable App**: Configure `electron-builder` to package the application into a standalone `.exe` or `.dmg`. End-users should never have to open a terminal.
+- [x] **Electron Wrapper**: Wrap the entire monorepo in Electron. The existing Express backend (`server/app.js`) should be integrated into the Electron Main process, while the React frontend (Vite production build) runs in the Renderer process.
+- [x] **API Key Abstraction (`electron-store`)**: Eliminate the developer-centric `.env` file approach. Implement `electron-store` in the Main process to securely persist the user's Gemini API key locally across sessions.
+- [x] **Settings UI**: Build a Settings modal in the React frontend where the user can input their Gemini API key. Use Electron IPC (Inter-Process Communication) to send this key to the Main process to be saved.
+- [x] **Single Installable App**: Configure `electron-builder` to package the application into a standalone `.exe` or `.dmg`. End-users should never have to open a terminal.
 - [ ] **Distribution**: Distribute the packaged binaries via GitHub Releases.
 
 ---

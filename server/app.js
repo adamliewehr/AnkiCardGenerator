@@ -11,8 +11,126 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
+async function generateLLMResponse(provider, apiKey, ollamaUrl, prompt) {
+  if (provider === 'gemini') {
+    const key = apiKey || process.env.GEMINI_API_KEY;
+    if (!key) throw new Error("No Gemini API key provided.");
+    const ai = new GoogleGenAI({ apiKey: key });
+    const response = await ai.models.generateContent({
+        model: 'gemini-3.6-flash',
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
+    });
+    return response.text;
+  } else if (provider === 'groq') {
+    const key = apiKey || process.env.GROQ_API_KEY;
+    if (!key) throw new Error("No Groq API key provided.");
+    const response = await axios.post(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "llama3-8b-8192", // Fast default Groq model
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" }
+      },
+      { headers: { Authorization: `Bearer ${key}` } }
+    );
+    return response.data.choices[0].message.content;
+  } else if (provider === 'ollama') {
+    const url = ollamaUrl || "http://localhost:11434";
+    const response = await axios.post(`${url}/api/generate`, {
+      model: "llama3", // Common local model
+      prompt: prompt,
+      stream: false,
+      format: "json"
+    });
+    return response.data.response;
+  } else {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+}
+
+async function generateDefinitionsViaLLM(word, sentence, domain, provider, apiKey, ollamaUrl) {
+  const baseInstructions = `If the word is complete gibberish (e.g., random keyboard mashing) and has absolutely no meaning in any language, slang, or technical domain, return exactly: {"meanings": []}
+  Otherwise, return the response as a JSON object with a single "meanings" array in this exact schema:
+  {
+    "meanings": [
+      {
+        "partOfSpeech": "noun",
+        "definitions": [
+          {
+            "definition": "The definition...",
+            "example": "An example sentence...",
+            "synonyms": ["synonym1", "synonym2"]
+          }
+        ]
+      }
+    ]
+  }`;
+
+  let prompt = `Define the word "${word}". ${baseInstructions} Provide multiple part of speech entries if applicable.`;
+
+  if (domain) {
+    prompt = `Define the word "${word}" strictly in the context of the subject/domain of ${domain}. ${baseInstructions}`;
+  } else if (sentence) {
+    prompt = `Define the word "${word}" strictly in the context of this sentence: "${sentence}". ${baseInstructions}`;
+  }
+
+  const llmTextResponse = await generateLLMResponse(provider, apiKey, ollamaUrl, prompt);
+  
+  let parsedData = JSON.parse(llmTextResponse);
+  let fallbackMeanings = Array.isArray(parsedData) ? parsedData : (parsedData.meanings || []);
+  
+  if (!fallbackMeanings || fallbackMeanings.length === 0) {
+    throw new Error("Word not found");
+  }
+  
+  if (sentence && !domain) {
+    const match = nlp(sentence).match(`{${word}}`);
+    let identifiedPOS = null;
+    if (match.has('#Noun')) identifiedPOS = 'noun';
+    else if (match.has('#Verb')) identifiedPOS = 'verb';
+    else if (match.has('#Adjective')) identifiedPOS = 'adjective';
+    else if (match.has('#Adverb')) identifiedPOS = 'adverb';
+
+    if (identifiedPOS) {
+      const matchedMeanings = fallbackMeanings.filter(m => m.partOfSpeech === identifiedPOS);
+      const otherMeanings = fallbackMeanings.filter(m => m.partOfSpeech !== identifiedPOS);
+      fallbackMeanings = [...matchedMeanings, ...otherMeanings];
+    }
+  }
+  
+  const posCounts = {};
+  for (const m of fallbackMeanings) {
+    posCounts[m.partOfSpeech] = (posCounts[m.partOfSpeech] || 0) + 1;
+  }
+  
+  const posCurrent = {};
+  for (const m of fallbackMeanings) {
+    if (posCounts[m.partOfSpeech] > 1) {
+      posCurrent[m.partOfSpeech] = (posCurrent[m.partOfSpeech] || 0) + 1;
+      m.partOfSpeechDisplay = `${m.partOfSpeech} (${posCurrent[m.partOfSpeech]}) ✨`;
+    } else {
+      m.partOfSpeechDisplay = `${m.partOfSpeech} ✨`;
+    }
+  }
+
+  return { phonetics: [], meanings: fallbackMeanings, isAIGenerated: true };
+}
+
 app.post("/api/define", async (req, res) => {
-  const { word, sentence } = req.body;
+  const { word, sentence, domain, forceLLM } = req.body;
+  const llmProvider = req.headers['x-llm-provider'] || 'gemini';
+  const apiKey = req.headers['x-api-key'] || '';
+  const ollamaUrl = req.headers['x-ollama-url'] || '';
+
+  if (forceLLM || domain) {
+    try {
+      const result = await generateDefinitionsViaLLM(word, sentence, domain, llmProvider, apiKey, ollamaUrl);
+      return res.send(result);
+    } catch (err) {
+      return res.status(404).send({ error: err.message || "Failed to generate custom definition." });
+    }
+  }
 
   try {
     const response = await axios.get(
@@ -100,92 +218,58 @@ app.post("/api/define", async (req, res) => {
     // });
   } catch (error) {
     if (error.response && error.response.status === 404) {
-      console.log(`[API] "${word}" not found in Dictionary API. Falling back to Gemini...`);
-      
-      if (!process.env.GEMINI_API_KEY) {
-        console.error("No GEMINI_API_KEY found in .env");
-        return res.status(404).send({ error: "Word not found and no Gemini API key configured for fallback." });
-      }
-
+      console.log(`[API] "${word}" not found in Dictionary API. Falling back to ${llmProvider}...`);
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        
-        const baseInstructions = `If the word is complete gibberish (e.g., random keyboard mashing) and has absolutely no meaning in any language, slang, or technical domain, return an empty array: []
-        Otherwise, return the response in this exact JSON schema:
-        [
-          {
-            "partOfSpeech": "noun",
-            "definitions": [
-              {
-                "definition": "The definition...",
-                "example": "An example sentence...",
-                "synonyms": ["synonym1", "synonym2"]
-              }
-            ]
-          }
-        ]`;
-
-        let prompt = `Define the word "${word}". ${baseInstructions} Provide multiple part of speech entries if applicable.`;
-
-        if (sentence) {
-          prompt = `Define the word "${word}" strictly in the context of this sentence: "${sentence}". ${baseInstructions}`;
-        }
-
-        const genaiResponse = await ai.models.generateContent({
-            model: 'gemini-3.6-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json"
-            }
-        });
-
-        let fallbackMeanings = JSON.parse(genaiResponse.text);
-        
-        if (!fallbackMeanings || fallbackMeanings.length === 0) {
-          return res.status(404).send({ error: "Word not found" });
-        }
-        
-        // Ensure the NLP matching still applies if it was contextual
-        if (sentence) {
-          const match = nlp(sentence).match(`{${word}}`);
-          let identifiedPOS = null;
-          if (match.has('#Noun')) identifiedPOS = 'noun';
-          else if (match.has('#Verb')) identifiedPOS = 'verb';
-          else if (match.has('#Adjective')) identifiedPOS = 'adjective';
-          else if (match.has('#Adverb')) identifiedPOS = 'adverb';
-
-          if (identifiedPOS) {
-            const matchedMeanings = fallbackMeanings.filter(m => m.partOfSpeech === identifiedPOS);
-            const otherMeanings = fallbackMeanings.filter(m => m.partOfSpeech !== identifiedPOS);
-            fallbackMeanings = [...matchedMeanings, ...otherMeanings];
-          }
-        }
-        
-        // Add partOfSpeechDisplay with a ✨ to indicate it was AI generated
-        const posCounts = {};
-        for (const m of fallbackMeanings) {
-          posCounts[m.partOfSpeech] = (posCounts[m.partOfSpeech] || 0) + 1;
-        }
-        
-        const posCurrent = {};
-        for (const m of fallbackMeanings) {
-          if (posCounts[m.partOfSpeech] > 1) {
-            posCurrent[m.partOfSpeech] = (posCurrent[m.partOfSpeech] || 0) + 1;
-            m.partOfSpeechDisplay = `${m.partOfSpeech} (${posCurrent[m.partOfSpeech]}) ✨`;
-          } else {
-            m.partOfSpeechDisplay = `${m.partOfSpeech} ✨`;
-          }
-        }
-
-        res.send({ phonetics: [], meanings: fallbackMeanings, isAIGenerated: true });
-      } catch (geminiError) {
-        console.error("Gemini Fallback Error:", geminiError);
-        res.status(500).send({ error: "Dictionary API failed and LLM fallback failed." });
+        const result = await generateDefinitionsViaLLM(word, sentence, domain, llmProvider, apiKey, ollamaUrl);
+        return res.send(result);
+      } catch (fallbackError) {
+        return res.status(404).send({ error: "Word not found and LLM fallback failed." });
       }
     } else {
       console.error(`Error: ${error.message}`);
       res.status(500).send({ error: "Internal server error" });
     }
+  }
+});
+
+app.post("/api/select-best-definition", async (req, res) => {
+  const { word, sentence, meanings } = req.body;
+  const llmProvider = req.headers['x-llm-provider'] || 'gemini';
+  const apiKey = req.headers['x-api-key'] || '';
+  const ollamaUrl = req.headers['x-ollama-url'] || '';
+
+  if (!sentence || !meanings || meanings.length === 0) {
+    return res.status(400).send({ error: "Sentence and meanings are required." });
+  }
+
+  try {
+    const prompt = `
+    You are an expert linguist. The user wants to know the best definition for the word "${word}" based on how it is used in the following sentence:
+    "${sentence}"
+    
+    Here is the list of available meanings and definitions:
+    ${JSON.stringify(meanings, null, 2)}
+    
+    Analyze the sentence and determine which part of speech and specific definition fits best.
+    Return your answer as a JSON object strictly following this schema:
+    {
+      "meaningIndex": [integer, index of the best meaning array],
+      "definitionIndex": [integer, index of the best definition inside that meaning array]
+    }
+    If NO definition fits perfectly or even remotely, return {"meaningIndex": -1, "definitionIndex": -1}. Do not return anything except the JSON object.
+    `;
+
+    const llmTextResponse = await generateLLMResponse(llmProvider, apiKey, ollamaUrl, prompt);
+    const parsedData = JSON.parse(llmTextResponse);
+    
+    if (typeof parsedData.meaningIndex !== 'number' || typeof parsedData.definitionIndex !== 'number') {
+      throw new Error("Invalid format returned by LLM");
+    }
+
+    res.send(parsedData);
+  } catch (error) {
+    console.error("Selection Assistance Error:", error);
+    res.status(500).send({ error: "Failed to automatically select the best definition." });
   }
 });
 

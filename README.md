@@ -1,51 +1,69 @@
 # Anki Vocab Gen
 
-A local, full-stack web application designed to instantly generate robust Anki flashcards from vocabulary words. It uses the Free Dictionary API for primary definitions and intelligently falls back to a Gemini LLM to generate context-aware definitions for slang, technical jargon, or obscure words.
+A desktop application designed to instantly generate robust Anki flashcards from vocabulary words. 
 
-## Prerequisites
+Anki Vocab Gen fetches definitions using the Free Dictionary API and intelligently falls back to Large Language Models (Google Gemini, Groq, or local Ollama) to generate context-aware definitions for slang, technical jargon, or obscure words. When you're happy with a definition, one click sends it directly to your local Anki deck.
 
-Before running this app, you must have the following installed and running locally:
+## Features & Capabilities
 
-1. **[Anki Desktop App](https://apps.ankiweb.net/)**: Must be open in the background.
-2. **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)**: An Anki add-on that allows external apps to communicate with your Anki database. (Add-on Code: `2055492159`).
-   - _Note: Please read the [Anki-Connect Docs](https://git.sr.ht/~foosoft/anki-connect) because it provides information to allow it to work depending on what operating system you are running._
-3. **Node.js**: Ensure Node is installed to run the local servers.
+- **Smart Dictionary Lookups**: Instantly pulls definitions, synonyms, part of speech, and audio pronunciation using the Free Dictionary API.
+- **Context-Aware AI Definitions**: Paste the sentence where you found the word. If the dictionary fails, the app uses AI to generate a definition strictly based on that context.
+- **Auto-Select Best Definition**: Even if standard dictionary results exist, you can use the AI "Auto-Select" feature to instantly highlight the exact meaning and part of speech that fits your context sentence.
+- **Domain/Subject Mode**: Reading a biology paper or law textbook? Specify a "Domain" (e.g., Biology) to skip the standard dictionary and force the AI to provide a highly specialized, domain-accurate definition.
+- **Direct Anki Export**: Formats the selected definition, synonyms, examples, and audio files into a flashcard and pushes it directly to your Anki database using AnkiConnect.
+- **Local & Private Options**: Configure the app to use a cloud provider like Google Gemini / Groq, or point it to a local Ollama instance for 100% offline, private AI generation.
 
-## Environment Variables
+---
 
-This app relies on the Gemini LLM for AI-generated definitions when a word isn't found in the dictionary. Since this is a local tool designed to be run on your own machine, you must provide your own free API key.
+## Getting Started
 
-1. Get a free API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Create a `.env` file in the root of this repository.
-3. Add your key to the file like this:
-   ```env
-   GEMINI_API_KEY="your_api_key_here"
-   ```
+### 1. Prerequisites (Anki Setup)
+Before using the app, you must configure Anki to accept cards from it.
+1. Install the **[Anki Desktop App](https://apps.ankiweb.net/)** and keep it open in the background.
+2. Install the **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** add-on in Anki. 
+   - Open Anki → Tools → Add-ons → Get Add-ons...
+   - Enter the Code: `2055492159`
+   - Restart Anki.
+   - *Note: Please review the [Anki-Connect Docs](https://git.sr.ht/~foosoft/anki-connect) for specific OS permissions if AnkiConnect fails to bind.*
 
-## Installation & Running
+### 2. Installation (Currently macOS Only)
+You do not need to use the terminal to run this app!
+*Note: The current release is built specifically for macOS (Apple Silicon). Windows support is planned for the future.*
+1. Go to the **Releases** tab on the GitHub repository.
+2. Download the `.dmg` installer.
+3. Install the application and open it.
 
-This is a monorepo containing a React frontend (`/client`) and an Express/Node.js backend (`/server`).
+### 3. API Key Setup
+By default, the app uses AI for fallback definitions and smart auto-selection. 
+1. Get a free API key from your preferred provider (e.g., [Google AI Studio](https://aistudio.google.com/app/apikey) for Gemini).
+2. Open the **Settings** panel inside the Anki Vocab Gen app.
+3. Select your provider, paste your API key, and the app will securely save it locally for future sessions.
 
-1. **Install dependencies:**
-   You will need to install the dependencies in both folders:
+---
 
+## For Developers
+
+If you want to modify the app or build it from source:
+
+### Tech Stack
+- **Frontend**: React + Vite
+- **Backend**: Express + Node.js (integrated into the Electron Main process)
+- **Desktop Wrapper**: Electron
+
+### Local Development
+1. Clone the repository and install dependencies:
    ```bash
-   cd server && npm install
-   cd ../client && npm install
+   npm install
+   npm run postinstall
    ```
-
-2. **Start the servers:**
-   You will need to run the development servers for both the frontend and backend simultaneously (in two separate terminal tabs):
-
+2. Start the development environment (this boots the Vite frontend and Electron concurrently):
    ```bash
-   # Terminal 1 (Backend)
-   cd server
-   npm run dev
-
-   # Terminal 2 (Frontend)
-   cd client
    npm run dev
    ```
 
-3. **Use the App:**
-   Ensure Anki is open, then open your browser to `http://localhost:5173`. Search for a word, optionally provide the sentence context, edit the definitions, and click "Save to Anki"!
+### Building the Desktop App
+To package the app into a standalone installer (`.dmg` or `.exe`):
+```bash
+npm run build:app
+```
+The packaged binaries will be output to the `dist/` folder.

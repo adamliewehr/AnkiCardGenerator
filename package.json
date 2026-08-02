@@ -1,0 +1,55 @@
+{
+  "name": "ankivocabgen",
+  "version": "1.0.0",
+  "description": "A local, full-stack web application designed to instantly generate robust Anki flashcards from vocabulary words. It uses the Free Dictionary API for primary definitions and intelligently falls back to a Gemini LLM to generate context-aware definitions for slang, technical jargon, or obscure words.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"npm run dev --prefix client\" \"wait-on http://localhost:5173 && electron .\"",
+    "build:client": "npm run build --prefix client",
+    "build:app": "npm run build:client && electron-builder build --mac",
+    "postinstall": "npm install --prefix client && npm install --prefix server"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adamliewehr/anki-vocab-cli.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/adamliewehr/anki-vocab-cli/issues"
+  },
+  "homepage": "https://github.com/adamliewehr/anki-vocab-cli#readme",
+  "build": {
+    "appId": "com.ankivocabgen.app",
+    "mac": {
+      "category": "public.app-category.education",
+      "identity": null
+    },
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "server/**/*",
+      "client/dist/**/*"
+    ]
+  },
+  "dependencies": {
+    "@google/genai": "^2.15.0",
+    "axios": "^1.19.0",
+    "compromise": "^14.16.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "electron-store": "^8.2.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
+    "wait-on": "^9.1.0"
+  }
+}
