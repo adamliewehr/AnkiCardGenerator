@@ -12,17 +12,17 @@ app.use(cors());
 app.use(express.json());
 
 async function generateLLMResponse(provider, apiKey, ollamaUrl, prompt) {
-  if (provider === 'gemini') {
+  if (provider === "gemini") {
     const key = apiKey || process.env.GEMINI_API_KEY;
     if (!key) throw new Error("No Gemini API key provided.");
     const ai = new GoogleGenAI({ apiKey: key });
     const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
+      model: "gemini-3.6-flash",
+      contents: prompt,
+      config: { responseMimeType: "application/json" },
     });
     return response.text;
-  } else if (provider === 'groq') {
+  } else if (provider === "groq") {
     const key = apiKey || process.env.GROQ_API_KEY;
     if (!key) throw new Error("No Groq API key provided.");
     const response = await axios.post(
@@ -30,18 +30,18 @@ async function generateLLMResponse(provider, apiKey, ollamaUrl, prompt) {
       {
         model: "llama3-8b-8192", // Fast default Groq model
         messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
       },
-      { headers: { Authorization: `Bearer ${key}` } }
+      { headers: { Authorization: `Bearer ${key}` } },
     );
     return response.data.choices[0].message.content;
-  } else if (provider === 'ollama') {
+  } else if (provider === "ollama") {
     const url = ollamaUrl || "http://localhost:11434";
     const response = await axios.post(`${url}/api/generate`, {
       model: "llama3", // Common local model
       prompt: prompt,
       stream: false,
-      format: "json"
+      format: "json",
     });
     return response.data.response;
   } else {
@@ -49,7 +49,14 @@ async function generateLLMResponse(provider, apiKey, ollamaUrl, prompt) {
   }
 }
 
-async function generateDefinitionsViaLLM(word, sentence, domain, provider, apiKey, ollamaUrl) {
+async function generateDefinitionsViaLLM(
+  word,
+  sentence,
+  domain,
+  provider,
+  apiKey,
+  ollamaUrl,
+) {
   const baseInstructions = `If the word is complete gibberish (e.g., random keyboard mashing) and has absolutely no meaning in any language, slang, or technical domain, return exactly: {"meanings": []}
   Otherwise, return the response as a JSON object with a single "meanings" array in this exact schema:
   {
@@ -75,35 +82,46 @@ async function generateDefinitionsViaLLM(word, sentence, domain, provider, apiKe
     prompt = `Define the word "${word}" strictly in the context of this sentence: "${sentence}". ${baseInstructions}`;
   }
 
-  const llmTextResponse = await generateLLMResponse(provider, apiKey, ollamaUrl, prompt);
-  
+  const llmTextResponse = await generateLLMResponse(
+    provider,
+    apiKey,
+    ollamaUrl,
+    prompt,
+  );
+
   let parsedData = JSON.parse(llmTextResponse);
-  let fallbackMeanings = Array.isArray(parsedData) ? parsedData : (parsedData.meanings || []);
-  
+  let fallbackMeanings = Array.isArray(parsedData)
+    ? parsedData
+    : parsedData.meanings || [];
+
   if (!fallbackMeanings || fallbackMeanings.length === 0) {
     throw new Error("Word not found");
   }
-  
+
   if (sentence && !domain) {
     const match = nlp(sentence).match(`{${word}}`);
     let identifiedPOS = null;
-    if (match.has('#Noun')) identifiedPOS = 'noun';
-    else if (match.has('#Verb')) identifiedPOS = 'verb';
-    else if (match.has('#Adjective')) identifiedPOS = 'adjective';
-    else if (match.has('#Adverb')) identifiedPOS = 'adverb';
+    if (match.has("#Noun")) identifiedPOS = "noun";
+    else if (match.has("#Verb")) identifiedPOS = "verb";
+    else if (match.has("#Adjective")) identifiedPOS = "adjective";
+    else if (match.has("#Adverb")) identifiedPOS = "adverb";
 
     if (identifiedPOS) {
-      const matchedMeanings = fallbackMeanings.filter(m => m.partOfSpeech === identifiedPOS);
-      const otherMeanings = fallbackMeanings.filter(m => m.partOfSpeech !== identifiedPOS);
+      const matchedMeanings = fallbackMeanings.filter(
+        (m) => m.partOfSpeech === identifiedPOS,
+      );
+      const otherMeanings = fallbackMeanings.filter(
+        (m) => m.partOfSpeech !== identifiedPOS,
+      );
       fallbackMeanings = [...matchedMeanings, ...otherMeanings];
     }
   }
-  
+
   const posCounts = {};
   for (const m of fallbackMeanings) {
     posCounts[m.partOfSpeech] = (posCounts[m.partOfSpeech] || 0) + 1;
   }
-  
+
   const posCurrent = {};
   for (const m of fallbackMeanings) {
     if (posCounts[m.partOfSpeech] > 1) {
@@ -119,16 +137,27 @@ async function generateDefinitionsViaLLM(word, sentence, domain, provider, apiKe
 
 app.post("/api/define", async (req, res) => {
   const { word, sentence, domain, forceLLM } = req.body;
-  const llmProvider = req.headers['x-llm-provider'] || 'gemini';
-  const apiKey = req.headers['x-api-key'] || '';
-  const ollamaUrl = req.headers['x-ollama-url'] || '';
+  const llmProvider = req.headers["x-llm-provider"] || "gemini";
+  const apiKey = req.headers["x-api-key"] || "";
+  const ollamaUrl = req.headers["x-ollama-url"] || "";
 
   if (forceLLM || domain) {
     try {
-      const result = await generateDefinitionsViaLLM(word, sentence, domain, llmProvider, apiKey, ollamaUrl);
+      const result = await generateDefinitionsViaLLM(
+        word,
+        sentence,
+        domain,
+        llmProvider,
+        apiKey,
+        ollamaUrl,
+      );
       return res.send(result);
     } catch (err) {
-      return res.status(404).send({ error: err.message || "Failed to generate custom definition." });
+      return res
+        .status(404)
+        .send({
+          error: err.message || "Failed to generate custom definition.",
+        });
     }
   }
 
@@ -138,7 +167,7 @@ app.post("/api/define", async (req, res) => {
     );
 
     const entries = response.data;
-    
+
     const phonetics = [];
     let meanings = [];
 
@@ -151,21 +180,29 @@ app.post("/api/define", async (req, res) => {
       // Use curly braces to match any conjugated form or lemma of the word (e.g. "sprang" -> "spring")
       const match = nlp(sentence).match(`{${word}}`);
       let identifiedPOS = null;
-      
-      if (match.has('#Noun')) identifiedPOS = 'noun';
-      else if (match.has('#Verb')) identifiedPOS = 'verb';
-      else if (match.has('#Adjective')) identifiedPOS = 'adjective';
-      else if (match.has('#Adverb')) identifiedPOS = 'adverb';
+
+      if (match.has("#Noun")) identifiedPOS = "noun";
+      else if (match.has("#Verb")) identifiedPOS = "verb";
+      else if (match.has("#Adjective")) identifiedPOS = "adjective";
+      else if (match.has("#Adverb")) identifiedPOS = "adverb";
 
       console.log(`[NLP] Word: "${word}" | Sentence: "${sentence}"`);
-      console.log(`[NLP] Found in sentence: ${match.found} | Identified POS: ${identifiedPOS}`);
+      console.log(
+        `[NLP] Found in sentence: ${match.found} | Identified POS: ${identifiedPOS}`,
+      );
 
       if (identifiedPOS) {
         // Bring all meanings that match the POS to the top
-        const matchedMeanings = meanings.filter(m => m.partOfSpeech === identifiedPOS);
-        const otherMeanings = meanings.filter(m => m.partOfSpeech !== identifiedPOS);
+        const matchedMeanings = meanings.filter(
+          (m) => m.partOfSpeech === identifiedPOS,
+        );
+        const otherMeanings = meanings.filter(
+          (m) => m.partOfSpeech !== identifiedPOS,
+        );
         meanings = [...matchedMeanings, ...otherMeanings];
-        console.log(`[NLP] Sorted ${matchedMeanings.length} '${identifiedPOS}' block(s) to the top.`);
+        console.log(
+          `[NLP] Sorted ${matchedMeanings.length} '${identifiedPOS}' block(s) to the top.`,
+        );
       }
     }
 
@@ -174,7 +211,7 @@ app.post("/api/define", async (req, res) => {
     for (const m of meanings) {
       posCounts[m.partOfSpeech] = (posCounts[m.partOfSpeech] || 0) + 1;
     }
-    
+
     const posCurrent = {};
     for (const m of meanings) {
       if (posCounts[m.partOfSpeech] > 1) {
@@ -186,9 +223,9 @@ app.post("/api/define", async (req, res) => {
     }
 
     // Deduplicate phonetics slightly
-    const uniquePhonetics = Array.from(new Set(phonetics.map(p => p.audio)))
-      .map(audio => phonetics.find(p => p.audio === audio))
-      .filter(p => p && p.audio);
+    const uniquePhonetics = Array.from(new Set(phonetics.map((p) => p.audio)))
+      .map((audio) => phonetics.find((p) => p.audio === audio))
+      .filter((p) => p && p.audio);
 
     res.send({ phonetics: uniquePhonetics, meanings });
 
@@ -217,29 +254,43 @@ app.post("/api/define", async (req, res) => {
     //   audio: audioURL,
     // });
   } catch (error) {
-    if (error.response && error.response.status === 404) {
-      console.log(`[API] "${word}" not found in Dictionary API. Falling back to ${llmProvider}...`);
+    // If the Dictionary API returns 404, 502, 429, etc., fall back to LLM
+    if (error.response || error.request) {
+      console.log(
+        `[API] "${word}" failed in Dictionary API (${error.response?.status || 'Network Error'}). Falling back to ${llmProvider}...`,
+      );
       try {
-        const result = await generateDefinitionsViaLLM(word, sentence, domain, llmProvider, apiKey, ollamaUrl);
+        const result = await generateDefinitionsViaLLM(
+          word,
+          sentence,
+          domain,
+          llmProvider,
+          apiKey,
+          ollamaUrl,
+        );
         return res.send(result);
       } catch (fallbackError) {
-        return res.status(404).send({ error: "Word not found and LLM fallback failed." });
+        return res
+          .status(404)
+          .send({ error: "Word not found and LLM fallback failed." });
       }
     } else {
-      console.error(`Error: ${error.message}`);
-      res.status(500).send({ error: "Internal server error" });
+      console.error(`Error:`, error);
+      res.status(500).send({ error: error.stack || String(error) });
     }
   }
 });
 
 app.post("/api/select-best-definition", async (req, res) => {
   const { word, sentence, meanings } = req.body;
-  const llmProvider = req.headers['x-llm-provider'] || 'gemini';
-  const apiKey = req.headers['x-api-key'] || '';
-  const ollamaUrl = req.headers['x-ollama-url'] || '';
+  const llmProvider = req.headers["x-llm-provider"] || "gemini";
+  const apiKey = req.headers["x-api-key"] || "";
+  const ollamaUrl = req.headers["x-ollama-url"] || "";
 
   if (!sentence || !meanings || meanings.length === 0) {
-    return res.status(400).send({ error: "Sentence and meanings are required." });
+    return res
+      .status(400)
+      .send({ error: "Sentence and meanings are required." });
   }
 
   try {
@@ -259,22 +310,33 @@ app.post("/api/select-best-definition", async (req, res) => {
     If NO definition fits perfectly or even remotely, return {"meaningIndex": -1, "definitionIndex": -1}. Do not return anything except the JSON object.
     `;
 
-    const llmTextResponse = await generateLLMResponse(llmProvider, apiKey, ollamaUrl, prompt);
+    const llmTextResponse = await generateLLMResponse(
+      llmProvider,
+      apiKey,
+      ollamaUrl,
+      prompt,
+    );
     const parsedData = JSON.parse(llmTextResponse);
-    
-    if (typeof parsedData.meaningIndex !== 'number' || typeof parsedData.definitionIndex !== 'number') {
+
+    if (
+      typeof parsedData.meaningIndex !== "number" ||
+      typeof parsedData.definitionIndex !== "number"
+    ) {
       throw new Error("Invalid format returned by LLM");
     }
 
     res.send(parsedData);
   } catch (error) {
     console.error("Selection Assistance Error:", error);
-    res.status(500).send({ error: "Failed to automatically select the best definition." });
+    res
+      .status(500)
+      .send({ error: "Failed to automatically select the best definition." });
   }
 });
 
 app.post("/api/sendToAnki", async (req, res) => {
-  const { word, partOfSpeech, definition, example, synonyms, audioURL } = req.body;
+  const { word, partOfSpeech, definition, example, synonyms, audioURL } =
+    req.body;
 
   let backHTML = `<b>Part of Speech:</b> ${partOfSpeech}<br><br>`;
   backHTML += `<b>Definition:</b> ${definition}<br><br>`;
@@ -312,7 +374,9 @@ app.post("/api/sendToAnki", async (req, res) => {
         },
       ];
     } catch (err) {
-      console.warn(`Audio URL unreachable (${err.message}). Skipping audio for Anki card.`);
+      console.warn(
+        `Audio URL unreachable (${err.message}). Skipping audio for Anki card.`,
+      );
     }
   }
 
@@ -326,7 +390,9 @@ app.post("/api/sendToAnki", async (req, res) => {
     }
   } catch (error) {
     console.error("AnkiConnect error:", error.message);
-    res.status(500).send({ error: "Could not connect to Anki. Is it running?" });
+    res
+      .status(500)
+      .send({ error: "Could not connect to Anki. Is it running?" });
   }
 });
 
