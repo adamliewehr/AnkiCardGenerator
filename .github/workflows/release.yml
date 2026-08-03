@@ -28,14 +28,16 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install Dependencies
+        shell: bash
         run: |
           npm install
           npm run postinstall
 
       - name: Build and Publish to GitHub Releases
+        shell: bash
         env:
           # This token is automatically provided by GitHub Actions!
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
