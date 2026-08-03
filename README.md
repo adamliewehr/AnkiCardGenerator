@@ -30,15 +30,38 @@ Before using the app, you must configure Anki to accept cards from it.
 
 ### 2. Installation
 
+You do not need to use the terminal to run this app!
+
 1. Go to the **Releases** tab on the GitHub repository.
 2. Download the installer for your operating system (`.dmg` for Mac, `.exe` for Windows).
-3. Install the application and open it.
+3. Install the application by dragging it to your Applications folder.
 
-### 3. API Key Setup
+**Mac Users Note ("App is damaged" Error):**
+Because this is an open-source app and not signed with a paid Apple Developer certificate, macOS Gatekeeper may wrongly flag the downloaded app as "damaged". To fix this:
 
-By default, the app uses AI for fallback definitions and smart auto-selection.
+1. Open your Mac Terminal.
+2. Run this exact command: `xattr -c /Applications/ankivocabgen.app`
+3. If that doesn't work, run: `find /Applications/ankivocabgen.app -exec xattr -c {} +`
+4. The app will now open normally!
 
-1. Get a free API key from your preferred provider (e.g., [Google AI Studio](https://aistudio.google.com/app/apikey) for Gemini).
+### 3. AI Provider Setup (Highly Recommended: Local Ollama)
+
+By default, the app uses AI to generate context-aware definitions. You can use cloud providers (Gemini, Groq), but we **highly recommend using a local LLM via Ollama** to avoid API rate limits and keep your data 100% private.
+
+**Option A: Local Ollama (Recommended, Free, No Limits)**
+
+1. Download and install [Ollama](https://ollama.com/).
+2. Open your computer's Terminal and run this exact command to download the required model:
+   ```bash
+   ollama run llama3
+   ```
+   _(Note: The app is currently hard-coded to look for the `llama3` model specifically)._
+3. Open the **Settings** panel inside the Anki Vocab Gen app.
+4. Set the AI Provider to **Local Ollama** and click Save.
+
+**Option B: Cloud Providers (Google Gemini / Groq)**
+
+1. Get a free API key from your preferred provider (e.g., [Google AI Studio](https://aistudio.google.com/app/apikey)).
 2. Open the **Settings** panel inside the Anki Vocab Gen app.
 3. Select your provider, paste your API key, and the app will securely save it locally for future sessions.
 
