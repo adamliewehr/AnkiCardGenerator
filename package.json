@@ -1,6 +1,6 @@
 {
   "name": "ankivocabgen",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A local, full-stack web application designed to instantly generate robust Anki flashcards from vocabulary words. It uses the Free Dictionary API for primary definitions and intelligently falls back to a Gemini LLM to generate context-aware definitions for slang, technical jargon, or obscure words.",
   "main": "main.js",
   "scripts": {
@@ -35,6 +35,13 @@
       "preload.js",
       "server/**/*",
       "client/dist/**/*"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "adamliewehr",
+        "repo": "anki-vocab-cli"
+      }
     ]
   },
   "dependencies": {
@@ -44,6 +51,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.9",
     "express": "^5.2.1"
   },
   "devDependencies": {
