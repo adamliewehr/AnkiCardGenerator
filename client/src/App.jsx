@@ -12,6 +12,11 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
 
+  // Deck state
+  const [decks, setDecks] = useState([]);
+  const [selectedDeck, setSelectedDeck] = useState("Vocabulary");
+  const [newDeckName, setNewDeckName] = useState("");
+
   // Settings state
   const [showSettings, setShowSettings] = useState(false);
   const [llmProvider, setLlmProvider] = useState("gemini");
@@ -36,6 +41,23 @@ function App() {
       setSettingsLoaded(true);
     };
     loadSettings();
+  }, []);
+
+  useEffect(() => {
+    const fetchDecks = async () => {
+      try {
+        const res = await axios.get("http://localhost:3000/api/decks");
+        if (res.data && res.data.decks) {
+          setDecks(res.data.decks);
+          if (!res.data.decks.includes("Vocabulary")) {
+            setSelectedDeck(res.data.decks[0] || "");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load decks:", error);
+      }
+    };
+    fetchDecks();
   }, []);
 
   useEffect(() => {
@@ -178,6 +200,19 @@ function App() {
     });
   };
 
+  const handleCreateDeck = async () => {
+    if (!newDeckName) return;
+    try {
+      await axios.post("http://localhost:3000/api/decks", { deckName: newDeckName });
+      setDecks([...decks, newDeckName]);
+      setSelectedDeck(newDeckName);
+      setNewDeckName("");
+      alert(`Deck "${newDeckName}" created successfully!`);
+    } catch (error) {
+      alert("Failed to create deck: " + (error.response?.data?.error || error.message));
+    }
+  };
+
   const handleSaveToAnki = async () => {
     const payload = {
       word,
@@ -185,7 +220,8 @@ function App() {
       definition: formState.definition,
       example: formState.example,
       synonyms: formState.synonyms,
-      audioURL: selectedAudioURL || null
+      audioURL: selectedAudioURL || null,
+      deckName: selectedDeck
     };
     
     setSaving(true);
@@ -396,6 +432,33 @@ function App() {
               style={{ width: "100%", padding: "0.5rem", minHeight: "60px" }}
               placeholder="Comma-separated synonyms"
             />
+          </div>
+
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", fontWeight: "bold", marginBottom: "0.5rem" }}>Anki Deck</label>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <select 
+                value={selectedDeck} 
+                onChange={(e) => setSelectedDeck(e.target.value)}
+                style={{ flex: 1, padding: "0.5rem" }}
+              >
+                {decks.map(deck => <option key={deck} value={deck}>{deck}</option>)}
+              </select>
+              <input 
+                type="text" 
+                placeholder="New deck name..." 
+                value={newDeckName} 
+                onChange={(e) => setNewDeckName(e.target.value)}
+                style={{ flex: 1, padding: "0.5rem" }}
+              />
+              <button 
+                onClick={handleCreateDeck}
+                disabled={!newDeckName}
+                style={{ padding: "0.5rem", cursor: "pointer", minWidth: "100px" }}
+              >
+                Create
+              </button>
+            </div>
           </div>
 
           <button disabled={saving} onClick={handleSaveToAnki} style={{ padding: "0.75rem 1.5rem", background: "#007bff", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", width: "100%" }}>

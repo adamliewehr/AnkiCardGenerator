@@ -335,7 +335,7 @@ app.post("/api/select-best-definition", async (req, res) => {
 });
 
 app.post("/api/sendToAnki", async (req, res) => {
-  const { word, partOfSpeech, definition, example, synonyms, audioURL } =
+  const { word, partOfSpeech, definition, example, synonyms, audioURL, deckName } =
     req.body;
 
   let backHTML = `<b>Part of Speech:</b> ${partOfSpeech}<br><br>`;
@@ -348,7 +348,7 @@ app.post("/api/sendToAnki", async (req, res) => {
     version: 6,
     params: {
       note: {
-        deckName: "Vocabulary",
+        deckName: deckName || "Vocabulary",
         modelName: "Basic",
         fields: {
           Front: word,
@@ -393,6 +393,44 @@ app.post("/api/sendToAnki", async (req, res) => {
     res
       .status(500)
       .send({ error: "Could not connect to Anki. Is it running?" });
+  }
+});
+
+app.get("/api/decks", async (req, res) => {
+  try {
+    const ankiResponse = await axios.post("http://127.0.0.1:8765", {
+      action: "deckNames",
+      version: 6
+    });
+    if (ankiResponse.data.error) {
+      res.status(500).send({ error: ankiResponse.data.error });
+    } else {
+      res.send({ decks: ankiResponse.data.result });
+    }
+  } catch (error) {
+    console.error("AnkiConnect error fetching decks:", error.message);
+    res.status(500).send({ error: "Could not connect to Anki. Is it running?" });
+  }
+});
+
+app.post("/api/decks", async (req, res) => {
+  const { deckName } = req.body;
+  if (!deckName) return res.status(400).send({ error: "deckName is required" });
+
+  try {
+    const ankiResponse = await axios.post("http://127.0.0.1:8765", {
+      action: "createDeck",
+      version: 6,
+      params: { deck: deckName }
+    });
+    if (ankiResponse.data.error) {
+      res.status(500).send({ error: ankiResponse.data.error });
+    } else {
+      res.send({ success: true, result: ankiResponse.data.result });
+    }
+  } catch (error) {
+    console.error("AnkiConnect error creating deck:", error.message);
+    res.status(500).send({ error: "Could not connect to Anki. Is it running?" });
   }
 });
 
