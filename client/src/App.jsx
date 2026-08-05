@@ -435,12 +435,12 @@ function App() {
           </div>
 
           <div style={{ marginBottom: "1rem" }}>
-            <label style={{ display: "block", fontWeight: "bold", marginBottom: "0.5rem" }}>Anki Deck</label>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <label style={{ display: "block", fontWeight: "bold", marginBottom: "0.5rem", color: "#333" }}>Anki Deck</label>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "stretch", height: "40px" }}>
               <select 
                 value={selectedDeck} 
                 onChange={(e) => setSelectedDeck(e.target.value)}
-                style={{ flex: 1, padding: "0.5rem" }}
+                style={{ width: "160px", flexShrink: 0, padding: "0 0.5rem", border: "1px solid #ccc", borderRadius: "6px", boxSizing: "border-box", fontSize: "0.95rem", height: "100%", outline: "none", cursor: "pointer" }}
               >
                 {decks.map(deck => <option key={deck} value={deck}>{deck}</option>)}
               </select>
@@ -449,12 +449,24 @@ function App() {
                 placeholder="New deck name..." 
                 value={newDeckName} 
                 onChange={(e) => setNewDeckName(e.target.value)}
-                style={{ flex: 1, padding: "0.5rem" }}
+                style={{ flex: 1, padding: "0 0.5rem", border: "1px solid #ccc", borderRadius: "6px", boxSizing: "border-box", fontSize: "0.95rem", height: "100%", outline: "none" }}
               />
               <button 
                 onClick={handleCreateDeck}
                 disabled={!newDeckName}
-                style={{ padding: "0.5rem", cursor: "pointer", minWidth: "100px" }}
+                style={{ 
+                  padding: "0 1rem", 
+                  cursor: newDeckName ? "pointer" : "not-allowed", 
+                  minWidth: "100px", 
+                  border: "none", 
+                  borderRadius: "6px", 
+                  background: newDeckName ? "#28a745" : "#a5d8b2", 
+                  color: "white",
+                  fontWeight: "bold",
+                  boxSizing: "border-box",
+                  height: "100%",
+                  transition: "background 0.2s"
+                }}
               >
                 Create
               </button>
